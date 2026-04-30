@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# Python virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# FAISS index (too large for git, regenerate with ingest.py)
+data/faiss_index/
+
+# Streamlit
+.streamlit/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
