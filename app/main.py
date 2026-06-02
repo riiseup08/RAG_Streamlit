@@ -2,6 +2,7 @@ import os
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 import streamlit as st
@@ -10,7 +11,17 @@ from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 
 load_dotenv()
-INDEX_DIR = Path("data/faiss_index")
+
+# Resolve paths relative to the repository root so the app works correctly
+# regardless of the working directory at startup (e.g. Streamlit Cloud).
+_REPO_ROOT = Path(__file__).parent.parent
+DATA_DIR = _REPO_ROOT / "data"
+INDEX_DIR = DATA_DIR / "faiss_index"
+
+# Make sure the repo root is on sys.path so that ingest.py can be imported.
+_repo_root_str = str(_REPO_ROOT)
+if _repo_root_str not in sys.path:
+    sys.path.insert(0, _repo_root_str)
 
 st.set_page_config(page_title="Evaluation Policy Assistant", page_icon="🇨🇦", layout="wide")
 st.title("Evaluation Policy Q&A Assistant")
@@ -22,12 +33,19 @@ st.sidebar.markdown("Built with LangChain, Groq, FAISS, Streamlit")
 
 @st.cache_resource(show_spinner="Loading knowledge base...")
 def load_vectorstore():
+    if not INDEX_DIR.exists():
+        with st.spinner("Knowledge base not found -- building it now from source PDFs (this takes a minute on first run)..."):
+            try:
+                from ingest import build_index
+                build_index(data_dir=DATA_DIR, index_dir=INDEX_DIR)
+            except Exception as exc:
+                st.error(
+                    f"Failed to build the knowledge base automatically: {exc}\n\n"
+                    "Please run `python ingest.py` from the repository root and redeploy."
+                )
+                st.stop()
     emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     return FAISS.load_local(str(INDEX_DIR), emb, allow_dangerous_deserialization=True)
-
-if not INDEX_DIR.exists():
-    st.error("Index not found. Run python ingest.py first.")
-    st.stop()
 
 vs = load_vectorstore()
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1, api_key=os.getenv("GROQ_API_KEY"))
