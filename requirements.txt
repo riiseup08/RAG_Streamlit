@@ -8,3 +8,5 @@ faiss-cpu>=1.13.0
 sentence-transformers>=5.0.0
 python-dotenv>=1.0.0
 pypdf>=3.17.0
+torch
+torchvision
